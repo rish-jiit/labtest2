@@ -1,0 +1,83 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.datasets import load_diabetes
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+data=load_diabetes()
+
+df=pd.DataFrame(data.data, columns=data.feature_names)
+df['target'] = data.target
+print(df.info())
+
+plt.figure(figsize=(15, 10))
+for i, column in enumerate(df.columns[:-1]):
+    plt.subplot(3, 4, i+1)
+    plt.hist(df[column], bins=20, color='blue', edgecolor='black')
+    plt.title(f'Histogram of {column}')
+plt.tight_layout()
+plt.show()
+
+
+num_numerical = df.select_dtypes(include=[np.number]).shape[1]
+num_categorical = df.select_dtypes(exclude=[np.number]).shape[1]
+
+print(f"numerical attributes: {num_numerical}")
+print(f" categorical attributes: {num_categorical}")
+print(f" Continuous target (no discrete classes)")
+
+plt.figure(figsize=(10, 8))
+correlation_matrix = df.corr()
+plt.imshow(correlation_matrix, cmap='coolwarm', interpolation='nearest')
+plt.colorbar()
+plt.xticks(range(len(df.columns)), df.columns, rotation=45)
+plt.yticks(range(len(df.columns)), df.columns)
+plt.plot('')
+plt.title('Heatmap')
+plt.show()
+
+df['target_class'] = (df['target'] > df['target'].median()).astype(int)
+X = df.drop(columns=['target', 'target_class'])
+y = df['target_class']
+
+split_ratios = [0.3, 0.2, 0.1]  
+classifiers = {
+    "Random Forest": RandomForestClassifier(),
+    "Support Vector Machine": SVC()
+}
+
+for name, clf in classifiers.items():
+    print(f"\nClassifier: {name}")
+    accuracies = []
+    for ratio in split_ratios:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=ratio, random_state=42)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        accuracies.append(accuracy)
+        print(f"Test split {ratio*100}% - Accuracy: {accuracy:.4f}")
+    print(f"Mean accuracy {name}: {np.mean(accuracies):.4f}")
+
+fig, ax = plt.subplots()
+bar_width = 0.35
+index = np.arange(len(split_ratios))
+
+rf_accuracies = [accuracy_score(y_test, RandomForestClassifier().fit(X_train, y_train).predict(X_test)) for ratio in split_ratios]
+svm_accuracies = [accuracy_score(y_test, SVC().fit(X_train, y_train).predict(X_test)) for ratio in split_ratios]
+
+bars1 = ax.bar(index, rf_accuracies, bar_width, label='random forest', color='b')
+bars2 = ax.bar(index + bar_width, svm_accuracies, bar_width, label='SVM', color='g')
+
+ax.set_xlabel('Test Split Ratio')
+ax.set_ylabel('Accuracy')
+ax.set_title('Accuracy of Models by Test Split Ratio')
+ax.set_xticks(index + bar_width / 2)
+ax.set_xticklabels([f"{int(r*100)}%" for r in split_ratios])
+ax.legend()
+
+plt.tight_layout()
+plt.show()
